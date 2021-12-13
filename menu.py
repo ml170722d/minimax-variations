@@ -17,7 +17,7 @@ if __name__ == '__main__':
     maps = os.listdir(map_dir)
     maps = [m.replace('.txt', '') for m in maps]
 
-    agent_dir = os.path.join(working_dir, 'img')
+    agent_dir = os.path.join(working_dir, 'agents')
     agents = os.listdir(agent_dir)
     agents = [a.replace('.png', '') for a in agents if a[0].isupper()]
 
