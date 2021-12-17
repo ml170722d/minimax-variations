@@ -36,14 +36,18 @@ class MinimaxAgent(StudentAgent):
         node = Node(state, Node.Type.MAX, '')
         alg = Minimax()
 
-        score, node = alg.minimax(node, max_levels)
+        score, node = alg.minimax(node, max_levels, self.id)
         return node.get_direction()
 
 
 class MinimaxABAgent(StudentAgent):
 
     def get_next_action(self, state, max_levels):
-        pass
+        node = Node(state, Node.Type.MAX, '')
+        alg = MinimaxAB()
+
+        score, node = alg.minimax(node, max_levels, self.id, -math.inf, math.inf)
+        return node.get_direction()
 
 
 class ExpectAgent(StudentAgent):
@@ -95,6 +99,11 @@ class Node:
             return True
         return False
 
+    def get_rival_ids(self, agent_id: int) -> list[int]:
+        all_agents = [agent.id for agent in self.state.agents]
+        all_agents.remove(agent_id)
+        return all_agents
+
 
 class Minimax:
     #           |   id  |   role
@@ -117,23 +126,22 @@ class Minimax:
         # print(node.get_type(), r)
         return r
 
+    def is_terminal(self, node: Node, curr_agent_id: int) -> bool:
+        return node.is_terminal(curr_agent_id)
 
-    def is_terminal(self, node: Node, agent_id: int) -> bool:
-        return node.is_terminal(agent_id)
-
-    def minimax(self, node: Node, depth: int) -> (int, Node):
+    def minimax(self, node: Node, depth: int, curr_agent_id: int) -> (int, Node):
         # print_map(node.get_state())
         # print('type:', 'MAX' if node.get_type() != Node.Type.MAX else 'MIN', f'on depth {depth}')
 
-        if self.is_terminal(node, 0 if node.get_type() == Node.Type.MAX else 1) or depth == 0:
+        if self.is_terminal(node, curr_agent_id) or depth == 0:
             return self.eval(node), node
 
         if node.get_type() == Node.Type.MAX:
             # MAX
             score = -math.inf
             n = None
-            for s in node.successors(0):
-                tmp, n_tmp = self.minimax(s, depth - 1)
+            for s in node.successors(curr_agent_id):
+                tmp, n_tmp = self.minimax(s, depth - 1, curr_agent_id)
                 # score = max(score, tmp)
                 if score < tmp:
                     score = tmp
@@ -144,12 +152,64 @@ class Minimax:
             # MIN
             score = math.inf
             n = None
-            for s in node.successors(1):
-                tmp, n_tmp = self.minimax(s, depth - 1)
-                # score = min(score, tmp)
-                if score > tmp:
+            for rival_id in node.get_rival_ids(curr_agent_id):
+                for s in node.successors(rival_id):
+                    tmp, n_tmp = self.minimax(s, depth - 1, curr_agent_id)
+                    # score = min(score, tmp)
+                    if score > tmp:
+                        score = tmp
+                        n = s
+
+            return score, n
+
+
+class MinimaxAB(Minimax):
+
+    def eval(self, node: Node, agent_id: int) -> float:
+        curr_agent_eval = len(node.get_state().get_legal_actions(agent_id))
+        rival_ids = node.get_rival_ids(agent_id)
+        rival_agent_eval = sum(len(node.get_state().get_legal_actions(rival_id)) for rival_id in rival_ids)
+        rival_agent_eval = rival_agent_eval / len(rival_ids)
+        return 10 * (curr_agent_eval - rival_agent_eval)
+
+    def minimax(self, node: Node, depth: int, curr_agent_id: int, alpha: float, beta: float) -> (int, Node):
+        # print_map(node.get_state())
+        # print('type:', 'MAX' if node.get_type() != Node.Type.MAX else 'MIN', f'on depth {depth}')
+
+        if self.is_terminal(node, curr_agent_id) or depth == 0:
+            return self.eval(node, curr_agent_id), node
+
+        if node.get_type() == Node.Type.MAX:
+            # MAX
+            score = -math.inf
+            n = None
+            for s in node.successors(curr_agent_id):
+                tmp, n_tmp = self.minimax(s, depth - 1, curr_agent_id, alpha, beta)
+                # score = max(score, tmp)
+                if score < tmp:
                     score = tmp
                     n = s
+                alpha = max(alpha, score)
+                if alpha >= beta:
+                    print('ab cut')
+                    break
+
+            return score, n
+        else:
+            # MIN
+            score = math.inf
+            n = None
+            for rival_id in node.get_rival_ids(curr_agent_id):
+                for s in node.successors(rival_id):
+                    tmp, n_tmp = self.minimax(s, depth - 1, curr_agent_id, alpha, beta)
+                    # score = min(score, tmp)
+                    if score > tmp:
+                        score = tmp
+                        n = s
+                    alpha = max(alpha, score)
+                    if alpha >= beta:
+                        print('ab cut')
+                        break
 
             return score, n
 
