@@ -2,7 +2,7 @@ import math
 import random
 
 from agents import Agent
-from minimax import Minimax, MinimaxAB, Expectimax
+from minimax import Minimax, MinimaxAB, Expectimax, MinimaxN
 
 
 # Example agent, behaves randomly.
@@ -62,5 +62,8 @@ class ExpectAgent(StudentAgent):
 class MaxNAgent(StudentAgent):
 
     def get_next_action(self, state, max_levels):
-        pass
+        node = MinimaxN.MaxNode(state)
+        alg = MinimaxN()
 
+        score, node = alg.run(node, max_levels, self.get_id(), self.get_id())
+        return node.get_direction()

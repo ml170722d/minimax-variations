@@ -35,16 +35,14 @@ class Minimax:
         def successors(self, agent_id: int):
             actions = self.state.get_legal_actions(agent_id)
             states_list = [self.state.apply_action(agent_id, act) for act in actions]
-            successors = [Minimax.MinNode(states_list[i], actions[i])
-                          for i in range(len(states_list))]
+            successors = [Minimax.MinNode(states_list[i], actions[i]) for i in range(len(states_list))]
             return successors
 
     class MinNode(Node):
         def successors(self, agent_id: int):
             actions = self.state.get_legal_actions(agent_id)
             states_list = [self.state.apply_action(agent_id, act) for act in actions]
-            successors = [Minimax.MaxNode(states_list[i], actions[i])
-                          for i in range(len(states_list))]
+            successors = [Minimax.MaxNode(states_list[i], actions[i]) for i in range(len(states_list))]
             return successors
 
     @staticmethod
@@ -132,16 +130,14 @@ class Expectimax(Minimax):
         def successors(self, agent_id: int) -> list:
             actions = self.state.get_legal_actions(agent_id)
             states_list = [self.state.apply_action(agent_id, act) for act in actions]
-            successors = [Expectimax.ChanceNode(states_list[i], actions[i])
-                          for i in range(len(states_list))]
+            successors = [Expectimax.ChanceNode(states_list[i], actions[i]) for i in range(len(states_list))]
             return successors
 
     class ChanceNode(Node):
         def successors(self, agent_id: int) -> list:
             actions = self.state.get_legal_actions(agent_id)
             states_list = [self.state.apply_action(agent_id, act) for act in actions]
-            successors = [Expectimax.MaxNode(states_list[i], actions[i])
-                          for i in range(len(states_list))]
+            successors = [Expectimax.MaxNode(states_list[i], actions[i]) for i in range(len(states_list))]
             return successors
 
     def run(self, node: Node, depth: int, curr_agent_id: int) -> (float, Node):
@@ -170,6 +166,56 @@ class Expectimax(Minimax):
                 tmp, n_tpm = self.run(s, depth - 1, curr_agent_id)
                 score += prob * tmp
                 n = node
+
+            return score, n
+
+
+class MinimaxN(Minimax):
+    class MaxNode(Node):
+        def successors(self, agent_id: int) -> list:
+            actions = self.state.get_legal_actions(agent_id)
+            states_list = [self.state.apply_action(agent_id, act) for act in actions]
+            successors = [MinimaxN.MinNode(states_list[i], actions[i]) for i in range(len(states_list))]
+            return successors
+
+    class MinNode(Node):
+        def successors(self, agent_id: int) -> list:
+            actions = self.state.get_legal_actions(agent_id)
+            states_list = [self.state.apply_action(agent_id, act) for act in actions]
+            successors = None
+            if self.is_last_player(agent_id):
+                successors = [MinimaxN.MaxNode(states_list[i], actions[i]) for i in range(len(states_list))]
+            else:
+                successors = [MinimaxN.MinNode(states_list[i], actions[i]) for i in range(len(states_list))]
+            return successors
+
+        def is_last_player(self, agent_id: int) -> bool:
+            return True if agent_id == len(self.state.agents) - 1 else False
+
+    def run(self, node: Node, depth: int, curr_agent_id: int, next_agent_id: int) -> (float, Node):
+        if self.is_terminal(node, curr_agent_id) or depth == 0:
+            return self.eval(node, curr_agent_id), node
+
+        if isinstance(node, MinimaxN.MaxNode):
+            # MAX
+            score = -math.inf
+            n = None
+            for s in node.successors(curr_agent_id):
+                tmp, n_tmp = self.run(s, depth - 1, curr_agent_id, (curr_agent_id + 1) % len(node.get_state().agents))
+                if score < tmp:
+                    score = tmp
+                    n = s
+
+            return score, n
+        else:
+            # MIN
+            score = math.inf
+            n = None
+            for s in node.successors(next_agent_id):
+                tmp, n_tmp = self.run(s, depth - 1, curr_agent_id, (next_agent_id + 1) % len(node.get_state().agents))
+                if score > tmp:
+                    score = tmp
+                    n = s
 
             return score, n
 
