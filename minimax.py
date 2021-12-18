@@ -21,13 +21,13 @@ class Node:
         return self.dir
 
     def is_terminal(self, agent_id: int) -> bool:
-        return True if len(self.state.get_legal_actions(agent_id)) == 0 else False
+        for _id in [agent.id for agent in self.state.agents if agent.is_active()]:
+            if len(self.state.get_legal_actions(_id)) == 0:
+                return True
+        return False
 
     def get_rival_ids(self, agent_id: int) -> list[int]:
-        # all_agents = [agent.id for agent in self.state.agents]
-        # all_agents.remove(agent_id)
-        # return all_agents
-        return [agent.id for agent in self.state.agents if agent_id != agent.get_id()]
+        return [agent.id for agent in self.state.agents if (agent_id != agent.get_id()) and agent.is_active()]
 
 
 class Minimax:
@@ -211,6 +211,10 @@ class MinimaxN(Minimax):
             # MIN
             score = math.inf
             n = None
+            rivals = node.get_rival_ids(curr_agent_id)
+            while next_agent_id not in rivals:
+                next_agent_id = (next_agent_id + 1) % len(node.get_state().agents)
+
             for s in node.successors(next_agent_id):
                 tmp, n_tmp = self.run(s, depth - 1, curr_agent_id, (next_agent_id + 1) % len(node.get_state().agents))
                 if score > tmp:
